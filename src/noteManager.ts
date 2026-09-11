@@ -19,6 +19,14 @@ export class NoteManager {
         return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     }
 
+    private async showDocument(uri: vscode.Uri, doc: vscode.TextDocument) {
+        if (path.extname(uri.fsPath) === '.md') {
+            await vscode.commands.executeCommand('markdown.showPreview', uri);
+        } else {
+            await vscode.window.showTextDocument(doc);
+        }
+    }
+
     /** Full path for a daily note */
     getNotePath(date: Date): string | undefined {
         const r = this.root();
@@ -61,7 +69,7 @@ export class NoteManager {
             try {
                 await vscode.workspace.fs.stat(uri);
                 const doc = await vscode.workspace.openTextDocument(uri);
-                await vscode.window.showTextDocument(doc);
+                await this.showDocument(uri, doc);
                 return;
             } catch (error: any) {
                 if (error?.code !== 'FileNotFound') {
@@ -107,7 +115,7 @@ export class NoteManager {
             try {
                 await vscode.workspace.fs.stat(uri);
                 const doc = await vscode.workspace.openTextDocument(uri);
-                await vscode.window.showTextDocument(doc);
+                await this.showDocument(uri, doc);
                 return;
             } catch (error: any) {
                 if (error?.code !== 'FileNotFound') {
