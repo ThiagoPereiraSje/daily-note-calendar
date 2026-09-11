@@ -30,6 +30,17 @@ export function isoWeekYear(date: Date): number {
     return d.getUTCFullYear();
 }
 
+export function monthWeek(date: Date): number {
+    const day = date.getDate(); // dia do mês
+    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const firstWeekday = firstDayOfMonth.getDay(); // dia da semana (0=Dom, 1=Seg...)
+
+    // Ajustar para semana iniciando na segunda-feira (opcional)
+    const adjustedFirstWeekday = (firstWeekday === 0 ? 7 : firstWeekday); 
+
+    return Math.ceil((day + adjustedFirstWeekday - 1) / 7);
+}
+
 /**
  * Format date string. Supported tokens:
  * YYYY, MM, DD, MMMM, GGGG, WW, and [literal] escaping.
@@ -42,6 +53,7 @@ export function formatDate(date: Date, fmt: string): string {
         'MMMM': MONTH_NAMES[date.getMonth()],
         'GGGG': String(isoWeekYear(date)),
         'WW': pad2(isoWeek(date)),
+        'MW': pad2(monthWeek(date)),
         'HH': pad2(date.getHours()),
         'mm': pad2(date.getMinutes()),
     };
