@@ -1,0 +1,22 @@
+networks:
+  public:
+    driver: bridge
+
+services:
+  backend:
+    user: ${USER_NAME}
+    image: calendar-note:dev
+    working_dir: ${WORK_DIR}
+    build:
+      context: .
+      dockerfile: dockerfile
+      args:
+        - USER_NAME=${USER_NAME}
+        - WORK_DIR=${WORK_DIR}
+    ports:
+      - 3000:3000
+    volumes:
+      - .:/home/${USER_NAME}/app
+    networks:
+      - public
+    command: tail -f /dev/null
