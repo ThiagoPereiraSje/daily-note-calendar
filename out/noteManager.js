@@ -5,6 +5,10 @@ const vscode = require("vscode");
 const path = require("path");
 const dates_1 = require("./dates");
 class NoteManager {
+    constructor() {
+        this._openingNotes = new Set();
+        this._creatingNotes = new Set();
+    }
     cfg() {
         return vscode.workspace.getConfiguration('dailyNoteCalendar');
     }
@@ -35,59 +39,100 @@ class NoteManager {
         const folder = c.get('notesFolder', 'daily-notes');
         const fname = (0, dates_1.formatDate)(date, c.get('dateFormat', 'YYYY-MM-DD')) + ext;
         const dirUri = vscode.Uri.file(path.join(r, folder));
-        // Search folder and all subfolders for the matching file
-        const fileMap = await this._collectFiles(dirUri, ext);
-        const existingUri = fileMap.get(fname);
-        if (existingUri) {
-            const doc = await vscode.workspace.openTextDocument(existingUri);
-            await vscode.window.showTextDocument(doc, beside ? vscode.ViewColumn.Beside : undefined);
+        const newUri = vscode.Uri.file(path.join(r, folder, fname));
+        if (this._openingNotes.has(newUri.fsPath)) {
             return;
         }
-        // Not found — offer to create in the target folder
-        if (c.get('confirmBeforeCreate', true)) {
-            const label = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-            const pick = await vscode.window.showInformationMessage(`Create daily note for ${label}?`, { modal: true }, 'Create', 'Always Create', 'Cancel');
-            if (pick === 'Always Create') {
-                await c.update('confirmBeforeCreate', false, vscode.ConfigurationTarget.Global);
-            }
-            else if (pick !== 'Create') {
+        this._openingNotes.add(newUri.fsPath);
+        try {
+            // Search folder and all subfolders for the matching file
+            const fileMap = await this._collectFiles(dirUri, ext);
+            const existingUri = fileMap.get(fname);
+            if (existingUri) {
+                const doc = await vscode.workspace.openTextDocument(existingUri);
+                await vscode.window.showTextDocument(doc, beside ? vscode.ViewColumn.Beside : undefined);
                 return;
             }
+            // Not found — offer to create in the target folder
+            if (c.get('confirmBeforeCreate', true)) {
+                const label = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                const pick = await vscode.window.showInformationMessage(`Create daily note for ${label}?`, { modal: true }, 'Create', 'Always Create', 'Cancel');
+                if (pick === 'Always Create') {
+                    await c.update('confirmBeforeCreate', false, vscode.ConfigurationTarget.Global);
+                }
+                else if (pick !== 'Create') {
+                    return;
+                }
+            }
+            await this.createNote(newUri, date);
         }
-        const newUri = vscode.Uri.file(path.join(r, folder, fname));
-        await this.createNote(newUri, date);
+        finally {
+            this._openingNotes.delete(newUri.fsPath);
+        }
     }
     async createNote(uri, date) {
-        const c = this.cfg();
-        let content = '';
-        // Try loading template
-        const tplPath = c.get('templatePath', '');
-        if (tplPath && this.root()) {
-            try {
-                const tplUri = vscode.Uri.file(path.join(this.root(), tplPath));
-                const raw = await vscode.workspace.fs.readFile(tplUri);
-                content = Buffer.from(raw).toString('utf-8');
-                const dateStr = (0, dates_1.formatDate)(date, c.get('dateFormat', 'YYYY-MM-DD'));
-                content = content
-                    .replace(/\{\{title\}\}/g, dateStr)
-                    .replace(/\{\{date\}\}/g, (0, dates_1.formatDate)(date, 'YYYY-MM-DD'))
-                    .replace(/\{\{time\}\}/g, (0, dates_1.formatDate)(date, 'HH:mm'));
-            }
-            catch {
-                // template not found
-            }
+        const key = uri.fsPath;
+        if (this._creatingNotes.has(key)) {
+            return;
         }
-        if (!content) {
-            content = '# ' + (0, dates_1.formatDate)(date, c.get('dateFormat', 'YYYY-MM-DD')) + '\n\n';
-        }
-        // Ensure directory exists
+        this._creatingNotes.add(key);
         try {
-            await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(uri.fsPath)));
+            try {
+                await vscode.workspace.fs.stat(uri);
+                const doc = await vscode.workspace.openTextDocument(uri);
+                await vscode.window.showTextDocument(doc);
+                return;
+            }
+            catch (error) {
+                if (error?.code !== 'FileNotFound') {
+                    throw error;
+                }
+            }
+            const c = this.cfg();
+            let content = '';
+            // Try loading template
+            const tplPath = c.get('templatePath', '');
+            if (tplPath && this.root()) {
+                try {
+                    const tplUri = vscode.Uri.file(path.join(this.root(), tplPath));
+                    const raw = await vscode.workspace.fs.readFile(tplUri);
+                    content = Buffer.from(raw).toString('utf-8');
+                    const dateStr = (0, dates_1.formatDate)(date, c.get('dateFormat', 'YYYY-MM-DD'));
+                    content = content
+                        .replace(/\{\{title\}\}/g, dateStr)
+                        .replace(/\{\{date\}\}/g, (0, dates_1.formatDate)(date, 'YYYY-MM-DD'))
+                        .replace(/\{\{time\}\}/g, (0, dates_1.formatDate)(date, 'HH:mm'));
+                }
+                catch {
+                    // template not found
+                }
+            }
+            if (!content) {
+                content = '# ' + (0, dates_1.formatDate)(date, c.get('dateFormat', 'YYYY-MM-DD')) + '\n\n';
+            }
+            // Ensure directory exists
+            try {
+                await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(uri.fsPath)));
+            }
+            catch { /* may already exist */ }
+            try {
+                await vscode.workspace.fs.stat(uri);
+                const doc = await vscode.workspace.openTextDocument(uri);
+                await vscode.window.showTextDocument(doc);
+                return;
+            }
+            catch (error) {
+                if (error?.code !== 'FileNotFound') {
+                    throw error;
+                }
+            }
+            await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf-8'));
+            const doc = await vscode.workspace.openTextDocument(uri);
+            await vscode.window.showTextDocument(doc);
         }
-        catch { /* may already exist */ }
-        await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf-8'));
-        const doc = await vscode.workspace.openTextDocument(uri);
-        await vscode.window.showTextDocument(doc);
+        finally {
+            this._creatingNotes.delete(key);
+        }
     }
     /** Recursively collect all files with the given extension under dirUri.
      *  Returns Map<filename, Uri> — first occurrence wins on name collision. */
