@@ -69,6 +69,10 @@ class NoteManager {
             const tplPath = c.get('templatePath', '');
             if (tplPath && this.root()) {
                 try {
+                    const curTime = new Date();
+                    if (!(0, dates_1.sameDay)(date, curTime)) {
+                        curTime.setHours(8, 0, 0, 0);
+                    }
                     const tplUri = vscode.Uri.file(path.join(this.root(), tplPath));
                     const raw = await vscode.workspace.fs.readFile(tplUri);
                     content = Buffer.from(raw).toString('utf-8');
@@ -76,7 +80,7 @@ class NoteManager {
                     content = content
                         .replace(/\{\{title\}\}/g, dateStr)
                         .replace(/\{\{date\}\}/g, (0, dates_1.formatDate)(date, 'YYYY-MM-DD'))
-                        .replace(/\{\{time\}\}/g, (0, dates_1.formatDate)(date, 'HH:mm'));
+                        .replace(/\{\{time\}\}/g, (0, dates_1.formatDate)(curTime, 'HH:mm'));
                 }
                 catch {
                     // template not found

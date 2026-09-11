@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { formatDate, pad2 } from './dates';
+import { formatDate, pad2, sameDay } from './dates';
 
 export interface NoteInfo {
     hasNote: boolean;
@@ -76,6 +76,12 @@ export class NoteManager {
             const tplPath = c.get('templatePath', '');
             if (tplPath && this.root()) {
                 try {
+                    const curTime = new Date()
+
+                    if (!sameDay(date, curTime)) {
+                        curTime.setHours(8, 0, 0, 0)
+                    }
+
                     const tplUri = vscode.Uri.file(path.join(this.root()!, tplPath));
                     const raw = await vscode.workspace.fs.readFile(tplUri);
                     content = Buffer.from(raw).toString('utf-8');
@@ -83,7 +89,7 @@ export class NoteManager {
                     content = content
                         .replace(/\{\{title\}\}/g, dateStr)
                         .replace(/\{\{date\}\}/g, formatDate(date, 'YYYY-MM-DD'))
-                        .replace(/\{\{time\}\}/g, formatDate(date, 'HH:mm'));
+                        .replace(/\{\{time\}\}/g, formatDate(curTime, 'HH:mm'));
                 } catch {
                     // template not found
                 }
