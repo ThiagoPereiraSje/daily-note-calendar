@@ -6,7 +6,6 @@ const path = require("path");
 const dates_1 = require("./dates");
 class NoteManager {
     constructor() {
-        this._openingNotes = new Set();
         this._creatingNotes = new Set();
     }
     cfg() {
@@ -38,36 +37,12 @@ class NoteManager {
         const ext = c.get('noteExtension', '.md');
         const folder = c.get('notesFolder', 'daily-notes');
         const fname = (0, dates_1.formatDate)(date, c.get('dateFormat', 'YYYY-MM-DD')) + ext;
-        const dirUri = vscode.Uri.file(path.join(r, folder));
         const newUri = vscode.Uri.file(path.join(r, folder, fname));
-        if (this._openingNotes.has(newUri.fsPath)) {
-            return;
-        }
-        this._openingNotes.add(newUri.fsPath);
         try {
-            // Search folder and all subfolders for the matching file
-            const fileMap = await this._collectFiles(dirUri, ext);
-            const existingUri = fileMap.get(fname);
-            if (existingUri) {
-                const doc = await vscode.workspace.openTextDocument(existingUri);
-                await vscode.window.showTextDocument(doc, beside ? vscode.ViewColumn.Beside : undefined);
-                return;
-            }
-            // Not found — offer to create in the target folder
-            if (c.get('confirmBeforeCreate', true)) {
-                const label = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                const pick = await vscode.window.showInformationMessage(`Create daily note for ${label}?`, { modal: true }, 'Create', 'Always Create', 'Cancel');
-                if (pick === 'Always Create') {
-                    await c.update('confirmBeforeCreate', false, vscode.ConfigurationTarget.Global);
-                }
-                else if (pick !== 'Create') {
-                    return;
-                }
-            }
             await this.createNote(newUri, date);
         }
-        finally {
-            this._openingNotes.delete(newUri.fsPath);
+        catch (error) {
+            throw error;
         }
     }
     async createNote(uri, date) {
