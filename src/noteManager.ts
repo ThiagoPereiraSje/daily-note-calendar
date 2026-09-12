@@ -131,29 +131,6 @@ export class NoteManager {
         }
     }
 
-    /** Recursively collect all files with the given extension under dirUri.
-     *  Returns Map<filename, Uri> — first occurrence wins on name collision. */
-    async _collectFiles(dirUri: vscode.Uri, ext: string): Promise<Map<string, vscode.Uri>> {
-        const fileMap = new Map<string, vscode.Uri>();
-        let entries: [string, vscode.FileType][];
-        try {
-            entries = await vscode.workspace.fs.readDirectory(dirUri);
-        } catch {
-            return fileMap;
-        }
-        for (const [name, type] of entries) {
-            if (type === vscode.FileType.Directory) {
-                const subMap = await this._collectFiles(vscode.Uri.joinPath(dirUri, name), ext);
-                for (const [fname, uri] of subMap) {
-                    if (!fileMap.has(fname)) { fileMap.set(fname, uri); }
-                }
-            } else if (type === vscode.FileType.File && name.endsWith(ext)) {
-                fileMap.set(name, vscode.Uri.joinPath(dirUri, name));
-            }
-        }
-        return fileMap;
-    }
-
     /** Scan the notes folder (and subfolders) for a range of dates */
     async scanMonth(year: number, month: number): Promise<Map<string, NoteInfo>> {
         const result = new Map<string, NoteInfo>();
@@ -163,30 +140,22 @@ export class NoteManager {
         const folder = c.get('notesFolder', 'daily-notes');
         const ext = c.get('noteExtension', '.md');
         const dateFmt = c.get('dateFormat', 'YYYY-MM-DD');
-        const wpd = c.get('wordsPerDot', 250);
-        const dirUri = vscode.Uri.file(path.join(r, folder));
-
-        // Recursively collect all note files from folder and subfolders
-        const fileMap = await this._collectFiles(dirUri, ext);
 
         // Check dates from 7 days before month to 7 days after
         const start = new Date(year, month, -7);
         const end = new Date(year, month + 1, 7);
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const fname = formatDate(d, dateFmt) + ext;
-            if (!fileMap.has(fname)) { continue; }
-            const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-            let wordCount = 0;
-            let hasOpenTasks = false;
+            const noteUri = vscode.Uri.file(path.join(r, folder, fname));
+
             try {
-                const raw = await vscode.workspace.fs.readFile(fileMap.get(fname)!);
-                const text = Buffer.from(raw).toString('utf-8');
-                if (wpd > 0) {
-                    wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
-                }
-                hasOpenTasks = /- \[ \]/.test(text);
-            } catch { /* skip */ }
-            result.set(iso, { hasNote: true, wordCount, hasOpenTasks });
+                await vscode.workspace.fs.stat(noteUri);
+            } catch {
+                continue;
+            }
+
+            const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+            result.set(iso, { hasNote: true, wordCount: 0, hasOpenTasks: false });
         }
         return result;
     }

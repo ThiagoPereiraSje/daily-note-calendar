@@ -207,17 +207,13 @@ body {
         html += '<div class="' + cls + '" tabindex="0" data-date="' + esc(dd.date) + '">';
         html += '<span class="day-n">' + dd.day + '</span>';
 
-        if (dd.hasNote && (dd.dots > 0 || dd.hasOpenTasks)) {
-          html += '<div class="dots">';
-          for (var j = 0; j < dd.dots; j++) html += '<span class="dot"></span>';
-          if (dd.hasOpenTasks) html += '<span class="dot hl"></span>';
-          html += '</div>';
+        if (dd.hasNote) {
+          html += '<div class="dots"><span class="dot"></span></div>';
         }
 
         var tip = dd.date;
         if (dd.hasNote) {
-          tip += " \u00B7 " + dd.wordCount + " words";
-          if (dd.hasOpenTasks) tip += " \u00B7 has tasks";
+          tip += " \u00B7 note exists";
         } else {
           tip += " \u00B7 click to create";
         }
@@ -225,11 +221,6 @@ body {
       }
     }
     html += '</div>';
-
-    html += '<div class="status">' +
-      '<span class="status-item"><span class="s-dot"></span> = ' + (d.wordsPerDot || 250) + ' words</span>' +
-      '<span class="status-item"><span class="s-dot hl"></span> = open tasks</span>' +
-      '</div>';
 
     var root = document.getElementById("app");
     root.innerHTML = html;

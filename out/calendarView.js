@@ -91,7 +91,6 @@ class CalendarViewProvider {
         const cfg = vscode.workspace.getConfiguration('dailyNoteCalendar');
         const mondayStart = cfg.get('startWeekOn', 'monday') === 'monday';
         const showWk = cfg.get('showWeekNumbers', false);
-        const wpd = cfg.get('wordsPerDot', 250);
         const dayHeaders = mondayStart
             ? ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
             : ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -118,9 +117,7 @@ class CalendarViewProvider {
                     isToday: (0, dates_1.sameDay)(d, today),
                     isWeekend: d.getDay() === 0 || d.getDay() === 6,
                     hasNote: !!info?.hasNote,
-                    hasOpenTasks: !!info?.hasOpenTasks,
-                    wordCount: info?.wordCount || 0,
-                    dots: info ? Math.max(1, wpd > 0 ? Math.min(5, Math.floor(info.wordCount / wpd)) : 1) : 0,
+                    dots: info?.hasNote ? 1 : 0,
                 };
             });
             weeks.push({
@@ -138,7 +135,6 @@ class CalendarViewProvider {
             weeks,
             showWeekNumbers: showWk,
             weeklyEnabled: false,
-            wordsPerDot: wpd,
             colors: {
                 month: cfg.get('colorMonth', ''),
                 year: cfg.get('colorYear', ''),
