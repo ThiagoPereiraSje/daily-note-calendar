@@ -84,13 +84,13 @@ body {
 .day.we:hover, .day.we:focus-visible { background: var(--c-hover); }
 
 .day-n {
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
   font-size: 16px; line-height: 1; font-weight: 400; font-variant-numeric: tabular-nums;
   color: var(--c-date-lbl, var(--c-day));
 }
 .day.has .day-n { color: var(--c-note); font-weight: 600; }
 .day.td .day-n {
   background: var(--c-today-bg); color: #fff !important;
-  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
   border-radius: 50%; font-weight: 700;
 }
 
