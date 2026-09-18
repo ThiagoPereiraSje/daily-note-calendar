@@ -15,12 +15,13 @@ class NoteManager {
         return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     }
     async showDocument(uri, doc) {
-        await vscode.window.showTextDocument(doc);
-        // if (path.extname(uri.fsPath) === '.md') {
-        //     await vscode.commands.executeCommand('markdown.showPreview', uri);
-        // } else {
-        //     await vscode.window.showTextDocument(doc);
-        // }
+        if (path.extname(uri.fsPath) === '.md') {
+            await vscode.window.showTextDocument(doc);
+            await vscode.commands.executeCommand('markdown.togglePreview');
+        }
+        else {
+            await vscode.window.showTextDocument(doc);
+        }
     }
     /** Full path for a daily note */
     getNotePath(date) {
